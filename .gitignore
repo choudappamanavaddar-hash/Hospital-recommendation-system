@@ -36,4 +36,6 @@ prisma/*.db-journal
 */prisma/*.db-journal
 coverage/
 setup_git.ps1
+scratch_push.ps1
 .agents/
+.mingit/
