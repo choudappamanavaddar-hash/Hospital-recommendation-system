@@ -39,3 +39,6 @@ setup_git.ps1
 scratch_push.ps1
 .agents/
 .mingit/
+ 
+push_repo.cjs
+test_git.ps1
