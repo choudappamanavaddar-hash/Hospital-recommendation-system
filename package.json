@@ -1,0 +1,32 @@
+{
+  "name": "hospital-management-system",
+  "version": "1.0.0",
+  "description": "Full-Stack Hospital Recommendation and Patient Management System with Supabase Backend",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "dev:frontend": "npm run dev --prefix frontend",
+    "dev:backend": "npm run dev --prefix backend",
+    "build": "npm run build --prefix frontend",
+    "test": "npm run test --prefix frontend"
+  },
+  "keywords": [
+    "hospital",
+    "patient-management",
+    "recommendation-system",
+    "queue-tracking",
+    "react",
+    "supabase",
+    "postgresql",
+    "typescript"
+  ],
+  "author": "Full Stack Engineer",
+  "license": "MIT",
+  "devDependencies": {
+    "isomorphic-git": "^1.43.2"
+  }
+}

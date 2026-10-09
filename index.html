@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>St. Jude HealthCare - Full-Stack Hospital Recommendation & Patient Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- Application Container -->
+  <div id="app" class="flex-1 flex flex-col"></div>
+
+  <!-- React 18 & Babel for Instant Standalone Browser Execution -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Default Seed Data
+    const INITIAL_DEPTS = [
+      { id: 'dept-1', name: 'Cardiology', code: 'CARD', description: 'Comprehensive cardiovascular care including heart disease diagnosis, hypertension, ECG, echocardiography, and preventative care.', services: 'ECG, Echocardiogram, Stress Test, Blood Pressure Monitoring', roomNumber: '101-A' },
+      { id: 'dept-2', name: 'Neurology', code: 'NEUR', description: 'Diagnosis and non-surgical treatment of disorders of the brain, spinal cord, nerves, and muscles.', services: 'EEG, Brain MRI, Migraine Therapy, Epilepsy Management', roomNumber: '204-B' },
+      { id: 'dept-3', name: 'Orthopedics', code: 'ORTH', description: 'Expert care for bones, joints, ligaments, tendons, muscles, spinal issues, and sports injuries.', services: 'Joint Pain Assessment, Fracture Management, X-Ray', roomNumber: '302-C' },
+      { id: 'dept-4', name: 'Pediatrics', code: 'PEDI', description: 'Specialized healthcare for infants, children, and adolescents up to 18 years of age.', services: 'Child Vaccinations, Routine Growth Checkups, Childhood Asthma Care', roomNumber: '108-D' },
+      { id: 'dept-5', name: 'General Internal Medicine', code: 'GENM', description: 'Primary medical care for adult illnesses, chronic disease prevention, fever, fatigue, and general health evaluations.', services: 'Physical Exam, Blood Work, Diabetes Management', roomNumber: '105-E' },
+      { id: 'dept-6', name: 'Dermatology', code: 'DERM', description: 'Advanced diagnosis and treatment of skin, hair, nail disorders, rashes, eczema, and allergies.', services: 'Skin Rash Assessment, Acne Therapy, Eczema Treatment', roomNumber: '210-F' },
+    ];
+
+    const INITIAL_DOCS = [
+      { id: 'doc-1', fullName: 'Dr. Sarah Smith, MD', specialty: 'Cardiovascular Medicine', departmentId: 'dept-1', qualification: 'MD - Harvard Medical School', availableDays: 'Monday-Friday', bio: 'Senior Cardiologist with 14+ years clinical experience in interventional cardiology.' },
+      { id: 'doc-2', fullName: 'Dr. Michael Chen, MD', specialty: 'Clinical Neurology & Epilepsy', departmentId: 'dept-2', qualification: 'MD, PhD - Stanford University', availableDays: 'Mon,Wed,Fri', bio: 'Board-certified Neurologist focusing on headaches, neuropathies, and memory care.' },
+      { id: 'doc-3', fullName: 'Dr. Priya Patel, MD', specialty: 'Orthopedic Surgery & Joint Care', departmentId: 'dept-3', qualification: 'MD - Mayo Clinic', availableDays: 'Tue,Thu,Sat', bio: 'Specialist in joint reconstruction, knee arthroscopy, and sports injury rehabilitation.' },
+      { id: 'doc-4', fullName: 'Dr. Robert Adams, MD', specialty: 'Internal Medicine & Primary Care', departmentId: 'dept-5', qualification: 'MD - Columbia University', availableDays: 'Monday-Friday', bio: 'Primary care physician emphasizing diagnostic accuracy and preventative wellness.' },
+    ];
+
+    function Application() {
+      const [currentPage, setCurrentPage] = useState('home');
+      const [user, setUser] = useState({ id: 'usr-p1', email: 'john.doe@example.com', role: 'PATIENT', fullName: 'John Doe' });
+
+      // Application State
+      const [departments] = useState(INITIAL_DEPTS);
+      const [doctors, setDoctors] = useState(INITIAL_DOCS);
+      const [appointments, setAppointments] = useState([
+        {
+          id: 'appt-1',
+          referenceNumber: 'APP-849120',
+          patientName: 'John Doe',
+          doctorName: 'Dr. Sarah Smith, MD',
+          departmentName: 'Cardiology',
+          date: new Date().toISOString().split('T')[0],
+          timeSlot: '10:30 AM',
+          status: 'CHECKED_IN',
+          queueNumber: 104,
+          patientsAhead: 1,
+          estimatedWaitMins: 15,
+          notes: 'Chest pain during morning jogging',
+        },
+      ]);
+      const [consultationHistory, setConsultationHistory] = useState([]);
+
+      // Form States
+      const [intakeForm, setIntakeForm] = useState({
+        visitReason: '',
+        symptoms: '',
+        onsetDate: '',
+        durationDays: '',
+        allergies: '',
+        medications: '',
+        preferredDepartmentId: '',
+        preferredDoctorId: '',
+        preferredDate: new Date().toISOString().split('T')[0],
+        preferredTimeSlot: '10:00 AM',
+      });
+
+      const [recommendations, setRecommendations] = useState([]);
+      const [selectedDocForBooking, setSelectedDocForBooking] = useState(null);
+      const [selectedApptForDoctorView, setSelectedApptForDoctorView] = useState(null);
+
+      // Doctor Notes State
+      const [docChiefComplaint, setDocChiefComplaint] = useState('');
+      const [docDiagnosis, setDocDiagnosis] = useState('');
+      const [docNotes, setDocNotes] = useState('');
+      const [rxMedication, setRxMedication] = useState('');
+
+      // Recommendation Logic
+      const generateRecommendations = (reason, symptoms) => {
+        const text = `${reason} ${symptoms}`.toLowerCase();
+        return departments.map(d => {
+          let score = 40;
+          let reasonText = 'Suitable clinical department for primary evaluation.';
+
+          if (d.code === 'CARD' && (text.includes('chest') || text.includes('heart') || text.includes('pressure') || text.includes('breath'))) {
+            score = 94;
+            reasonText = 'Direct match for cardiovascular symptoms (chest pain, shortness of breath, blood pressure).';
+          } else if (d.code === 'NEUR' && (text.includes('headache') || text.includes('dizziness') || text.includes('brain') || text.includes('numbness'))) {
+            score = 92;
+            reasonText = 'Matches neurological symptoms (headaches, dizziness, nerve sensations).';
+          } else if (d.code === 'ORTH' && (text.includes('joint') || text.includes('bone') || text.includes('knee') || text.includes('back'))) {
+            score = 90;
+            reasonText = 'Matches musculoskeletal & bone complaints.';
+          }
+          return { ...d, matchScore: score, matchReason: reasonText };
+        }).sort((a, b) => b.matchScore - a.matchScore);
+      };
+
+      const handleIntakeSubmit = (e) => {
+        e.preventDefault();
+        const recs = generateRecommendations(intakeForm.visitReason, intakeForm.symptoms);
+        setRecommendations(recs);
+        setCurrentPage('recommendation');
+      };
+
+      const handleBookAppointment = (doc, slot) => {
+        const refNo = 'APP-' + Math.floor(100000 + Math.random() * 900000);
+        const newAppt = {
+          id: 'appt-' + Date.now(),
+          referenceNumber: refNo,
+          patientName: user.fullName || 'John Doe',
+          doctorName: doc.fullName,
+          departmentName: departments.find(d => d.id === doc.departmentId)?.name || 'General',
+          date: intakeForm.preferredDate || new Date().toISOString().split('T')[0],
+          timeSlot: slot || '10:30 AM',
+          status: 'BOOKED',
+          notes: intakeForm.visitReason || 'General Consultation',
+        };
+        setAppointments([newAppt, ...appointments]);
+        alert(`Appointment ${refNo} successfully booked with ${doc.fullName}!`);
+        setCurrentPage('patient-dashboard');
+      };
+
+      const handleCheckIn = (apptId) => {
+        setAppointments(appointments.map(a => {
+          if (a.id === apptId) {
+            return {
+              ...a,
+              status: 'CHECKED_IN',
+              queueNumber: Math.floor(100 + Math.random() * 20),
+              patientsAhead: 2,
+              estimatedWaitMins: 20,
+            };
+          }
+          return a;
+        }));
+        setCurrentPage('queue-tracker');
+      };
+
+      const handleSaveConsultation = (e) => {
+        e.preventDefault();
+        if (!selectedApptForDoctorView) return;
+
+        const newConsultation = {
+          id: 'cons-' + Date.now(),
+          patientName: selectedApptForDoctorView.patientName,
+          doctorName: user.fullName,
+          chiefComplaint: docChiefComplaint,
+          diagnosis: docDiagnosis,
+          notes: docNotes,
+          medication: rxMedication,
+          date: new Date().toLocaleDateString(),
+        };
+
+        setConsultationHistory([newConsultation, ...consultationHistory]);
+        setAppointments(appointments.map(a => a.id === selectedApptForDoctorView.id ? { ...a, status: 'COMPLETED' } : a));
+        alert('Consultation record saved and diagnosis stored!');
+        setSelectedApptForDoctorView(null);
+        setDocChiefComplaint('');
+        setDocDiagnosis('');
+        setDocNotes('');
+        setRxMedication('');
+      };
+
+      return (
+        <div className="flex-1 flex flex-col min-h-screen">
+          {/* Navigation Bar */}
+          <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentPage('home')}>
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xl font-black shadow-md shadow-blue-200">
+                  🏥
+                </div>
+                <div>
+                  <span className="font-extrabold text-lg text-slate-900 block leading-tight">St. Jude HealthCare</span>
+                  <span className="text-[10px] font-semibold text-blue-600 uppercase tracking-wider block">Recommendation & Intake System</span>
+                </div>
+              </div>
+
+              <div className="hidden md:flex items-center gap-6 text-sm font-semibold text-slate-700">
+                <button onClick={() => setCurrentPage('home')} className={currentPage === 'home' ? 'text-blue-600 font-bold' : ''}>Home</button>
+                <button onClick={() => setCurrentPage('intake-form')} className={currentPage === 'intake-form' ? 'text-blue-600 font-bold' : ''}>Intake Form</button>
+                <button onClick={() => setCurrentPage('recommendation')} className={currentPage === 'recommendation' ? 'text-blue-600 font-bold' : ''}>Find Department</button>
+                <button onClick={() => setCurrentPage('doctor-directory')} className={currentPage === 'doctor-directory' ? 'text-blue-600 font-bold' : ''}>Doctors</button>
+                <button onClick={() => setCurrentPage('stock')} className={currentPage === 'stock' ? 'text-teal-600 font-bold' : 'text-teal-700 font-semibold'}>📦 Medicine Stock</button>
+                
+                {/* Role Switcher */}
+                <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+                  <span className="text-slate-400 pl-2 font-mono">Role:</span>
+                  <button onClick={() => { setUser({ ...user, role: 'PATIENT' }); setCurrentPage('patient-dashboard'); }} className={`px-2.5 py-1 rounded-lg font-bold ${user.role === 'PATIENT' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-700'}`}>Patient</button>
+                  <button onClick={() => { setUser({ ...user, role: 'DOCTOR', fullName: 'Dr. Sarah Smith, MD' }); setCurrentPage('doctor-dashboard'); }} className={`px-2.5 py-1 rounded-lg font-bold ${user.role === 'DOCTOR' ? 'bg-cyan-600 text-white shadow-xs' : 'text-slate-700'}`}>Doctor</button>
+                  <button onClick={() => { setUser({ ...user, role: 'ADMIN', fullName: 'Administrator' }); setCurrentPage('admin-dashboard'); }} className={`px-2.5 py-1 rounded-lg font-bold ${user.role === 'ADMIN' ? 'bg-indigo-600 text-white shadow-xs' : 'text-slate-700'}`}>Admin</button>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Main Content Pages */}
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+            
+            {/* Page: Home */}
+            {currentPage === 'home' && (
+              <div className="space-y-12">
+                <div className="bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-950 text-white rounded-3xl p-10 sm:p-16 text-center shadow-2xl space-y-6">
+                  <span className="px-3.5 py-1.5 rounded-full bg-blue-500/30 text-blue-200 text-xs font-bold uppercase tracking-wider border border-blue-400/30">
+                    🏥 Smart Patient Intake & Recommendation System
+                  </span>
+                  <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight">
+                    Full-Stack Hospital Care & Queue Management
+                  </h1>
+                  <p className="text-base sm:text-lg text-blue-100 max-w-2xl mx-auto">
+                    Submit your medical requirements online, receive rules-based department recommendations, book appointments, and track your live queue ticket.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                    <button onClick={() => setCurrentPage('intake-form')} className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-3.5 rounded-xl font-bold text-base shadow-lg shadow-teal-900/30">
+                      📋 Complete Online Intake Form
+                    </button>
+                    <button onClick={() => setCurrentPage('recommendation')} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3.5 rounded-xl font-bold text-base shadow-lg shadow-blue-900/30">
+                      🎯 View Department Matcher
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-3xl block mb-3">🧠</span>
+                    <h3 className="font-bold text-lg text-slate-900">Department Recommendation Engine</h3>
+                    <p className="text-xs text-slate-600 mt-1">Rule-based scoring matching patient symptoms directly to specialized clinical departments.</p>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-3xl block mb-3">⏳</span>
+                    <h3 className="font-bold text-lg text-slate-900">Live Waiting Queue Tracker</h3>
+                    <p className="text-xs text-slate-600 mt-1">Real-time status updates showing queue numbers, position, and estimated waiting times.</p>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-3xl block mb-3">🩺</span>
+                    <h3 className="font-bold text-lg text-slate-900">Doctor Clinical Console</h3>
+                    <p className="text-xs text-slate-600 mt-1">Allows attending physicians to review online intake forms and record diagnosis & prescriptions.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Page: Patient Intake Form */}
+            {currentPage === 'intake-form' && (
+              <div className="max-w-3xl mx-auto space-y-6">
+                <div className="text-center">
+                  <h2 className="text-3xl font-black text-slate-900">Patient Healthcare Requirement Form</h2>
+                  <p className="text-sm text-slate-600 mt-1">Submit your symptoms for automated department matching and doctor booking.</p>
+                </div>
+
+                <form onSubmit={handleIntakeSubmit} className="bg-white p-8 rounded-2xl border border-slate-200 shadow-lg space-y-5">
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Reason for Hospital Visit *</label>
+                    <input
+                      required
+                      placeholder="e.g. Chest pain during exertion, severe migraine, knee joint pain..."
+                      className="w-full p-3 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500"
+                      value={intakeForm.visitReason}
+                      onChange={e => setIntakeForm({ ...intakeForm, visitReason: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-1">Detailed Symptoms & Onset *</label>
+                    <textarea
+                      required
+                      rows={3}
+                      placeholder="Describe when symptoms started, severity, and any triggers..."
+                      className="w-full p-3 rounded-lg border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500"
+                      value={intakeForm.symptoms}
+                      onChange={e => setIntakeForm({ ...intakeForm, symptoms: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Known Allergies</label>
+                      <input
+                        placeholder="e.g. Penicillin"
+                        className="w-full p-3 rounded-lg border border-slate-300 text-sm"
+                        value={intakeForm.allergies}
+                        onChange={e => setIntakeForm({ ...intakeForm, allergies: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-slate-700 mb-1">Current Medications</label>
+                      <input
+                        placeholder="e.g. Lisinopril 10mg"
+                        className="w-full p-3 rounded-lg border border-slate-300 text-sm"
+                        value={intakeForm.medications}
+                        onChange={e => setIntakeForm({ ...intakeForm, medications: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl shadow-md">
+                    🚀 Submit Requirement & Get Department Match
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {/* Page: Recommendation */}
+            {currentPage === 'recommendation' && (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h2 className="text-3xl font-black text-slate-900">Hospital Department Recommendations</h2>
+                  <p className="text-sm text-slate-600 mt-1">Calculated match scores based on your reported symptoms.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {(recommendations.length > 0 ? recommendations : generateRecommendations(intakeForm.visitReason || 'chest pain', intakeForm.symptoms || '')).map(rec => (
+                    <div key={rec.id} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start mb-3">
+                          <h3 className="text-xl font-bold text-slate-800">{rec.name} ({rec.code})</h3>
+                          <span className="bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full">
+                            {rec.matchScore}% Match
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mb-3">{rec.description}</p>
+                        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-3 rounded-xl text-xs font-medium mb-4">
+                          💡 {rec.matchReason}
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          const doc = doctors.find(d => d.departmentId === rec.id) || doctors[0];
+                          handleBookAppointment(doc, '10:30 AM');
+                        }}
+                        className="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-xl text-sm shadow-sm"
+                      >
+                        Book Appointment in {rec.name}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Page: Doctor Directory */}
+            {currentPage === 'doctor-directory' && (
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h2 className="text-3xl font-black text-slate-900">Medical Doctor Directory</h2>
+                  <p className="text-sm text-slate-600">Browse verified consultants and available consultation schedules.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {doctors.map(doc => (
+                    <div key={doc.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                      <div>
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded mb-2 inline-block">
+                          {departments.find(d => d.id === doc.departmentId)?.name}
+                        </span>
+                        <h3 className="font-bold text-lg text-slate-900">{doc.fullName}</h3>
+                        <p className="text-xs text-blue-600 font-medium mb-3">{doc.specialty}</p>
+                        <p className="text-xs text-slate-600 line-clamp-3 mb-4">{doc.bio}</p>
+                      </div>
+
+                      <button
+                        onClick={() => handleBookAppointment(doc, '11:00 AM')}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-xl text-xs shadow-sm"
+                      >
+                        Book Consultation Slot
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Page: Patient Dashboard */}
+            {currentPage === 'patient-dashboard' && (
+              <div className="space-y-8">
+                <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white p-8 rounded-3xl shadow-xl flex justify-between items-center">
+                  <div>
+                    <h2 className="text-3xl font-black">Patient Portal</h2>
+                    <p className="text-sm text-blue-200 mt-1">Manage appointments and check in for real-time queue tracking.</p>
+                  </div>
+                  <button onClick={() => setCurrentPage('intake-form')} className="bg-teal-500 hover:bg-teal-600 text-white font-bold px-4 py-2 rounded-xl text-sm">
+                    + New Requirement
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-4">Upcoming Appointments</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {appointments.map(a => (
+                      <div key={a.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                          <span className="font-mono text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded">{a.referenceNumber}</span>
+                          <span className="text-xs font-bold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">{a.status}</span>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-800">{a.doctorName}</h4>
+                          <p className="text-xs text-blue-600">{a.departmentName}</p>
+                          <p className="text-xs text-slate-500 mt-2">Date: {a.date} at {a.timeSlot}</p>
+                        </div>
+
+                        <div className="flex gap-2 pt-2">
+                          {a.status === 'BOOKED' && (
+                            <button onClick={() => handleCheckIn(a.id)} className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-lg text-xs">
+                              Check In Online Now
+                            </button>
+                          )}
+                          {a.status === 'CHECKED_IN' && (
+                            <button onClick={() => setCurrentPage('queue-tracker')} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-xs">
+                              Track Live Queue Ticket #{a.queueNumber}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Page: Queue Tracker */}
+            {currentPage === 'queue-tracker' && (
+              <div className="max-w-3xl mx-auto space-y-6">
+                <div className="text-center">
+                  <h2 className="text-3xl font-black text-slate-900">Live Hospital Queue Tracker</h2>
+                  <p className="text-sm text-slate-600 mt-1">Real-time status updates from the hospital waiting room.</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-slate-900 to-blue-950 text-white rounded-3xl p-8 shadow-2xl space-y-6">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-2xl font-black">Queue Ticket #104</h3>
+                    <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-3 py-1 rounded-full font-bold">WAITING</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                      <span className="text-xs text-slate-400 block mb-1">Queue Position</span>
+                      <span className="text-3xl font-black text-blue-400">#2</span>
+                    </div>
+                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                      <span className="text-xs text-slate-400 block mb-1">Patients Ahead</span>
+                      <span className="text-3xl font-black text-amber-400">1</span>
+                    </div>
+                    <div className="bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+                      <span className="text-xs text-slate-400 block mb-1">Est. Waiting</span>
+                      <span className="text-3xl font-black text-emerald-400">~15m</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Page: Doctor Dashboard */}
+            {currentPage === 'doctor-dashboard' && (
+              <div className="space-y-6">
+                <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl flex justify-between items-center">
+                  <div>
+                    <h2 className="text-3xl font-black">Attending Doctor Console</h2>
+                    <p className="text-sm text-slate-300">Dr. Sarah Smith, MD - Cardiology Department</p>
+                  </div>
+                  <button onClick={() => alert('Calling next patient into consultation room 101-A!')} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm">
+                    📢 Call Next Patient Into Room
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Doctor Queue List */}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 space-y-3">
+                    <h3 className="font-bold text-slate-900 text-base">Waiting Patients</h3>
+                    {appointments.map(a => (
+                      <div
+                        key={a.id}
+                        onClick={() => {
+                          setSelectedApptForDoctorView(a);
+                          setDocChiefComplaint(a.notes || 'Routine consultation intake');
+                          setDocDiagnosis('');
+                          setDocNotes('');
+                          setRxMedication('');
+                        }}
+                        className={`p-4 rounded-xl border cursor-pointer ${selectedApptForDoctorView?.id === a.id ? 'bg-blue-50 border-blue-500' : 'bg-slate-50 border-slate-200'}`}
+                      >
+                        <div className="flex justify-between text-xs font-bold mb-1">
+                          <span>Ticket #{a.queueNumber || '104'}</span>
+                          <span className="text-emerald-700">{a.status}</span>
+                        </div>
+                        <h4 className="font-bold text-slate-800">{a.patientName}</h4>
+                        <p className="text-xs text-slate-500 line-clamp-1">{a.notes || 'No initial notes'}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Doctor Notes Form */}
+                  <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 space-y-4">
+                    <h3 className="font-bold text-slate-900 text-lg">Consultation & Diagnosis Record</h3>
+                    
+                    <form onSubmit={handleSaveConsultation} className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Chief Complaint</label>
+                        <input
+                          required
+                          className="w-full p-2.5 border rounded-lg text-sm"
+                          value={docChiefComplaint}
+                          onChange={e => setDocChiefComplaint(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Diagnosis</label>
+                        <input
+                          required
+                          placeholder="e.g. Mild Essential Hypertension"
+                          className="w-full p-2.5 border rounded-lg text-sm"
+                          value={docDiagnosis}
+                          onChange={e => setDocDiagnosis(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Physician Clinical Notes</label>
+                        <textarea
+                          rows={3}
+                          placeholder="Treatment plan, follow-up instructions..."
+                          className="w-full p-2.5 border rounded-lg text-sm"
+                          value={docNotes}
+                          onChange={e => setDocNotes(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-700 mb-1">Prescription Rx</label>
+                        <input
+                          placeholder="Medication name, dosage, and frequency..."
+                          className="w-full p-2.5 border rounded-lg text-sm"
+                          value={rxMedication}
+                          onChange={e => setRxMedication(e.target.value)}
+                        />
+                      </div>
+
+                      <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl">
+                        Save Diagnosis & Complete Consultation
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Page: Admin Dashboard */}
+            {currentPage === 'admin-dashboard' && (
+              <div className="space-y-6">
+                <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl flex justify-between items-center">
+                  <div>
+                    <h2 className="text-3xl font-black">Hospital Administration Console</h2>
+                    <p className="text-sm text-slate-300">System oversight, doctor scheduling, and compliance audit logs.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                    <span className="text-xs text-slate-400 block mb-1">Total Patients</span>
+                    <span className="text-3xl font-black text-slate-900">148</span>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                    <span className="text-xs text-slate-400 block mb-1">Active Doctors</span>
+                    <span className="text-3xl font-black text-blue-600">{doctors.length}</span>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                    <span className="text-xs text-slate-400 block mb-1">Departments</span>
+                    <span className="text-3xl font-black text-teal-600">{departments.length}</span>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200">
+                    <span className="text-xs text-slate-400 block mb-1">Today Appointments</span>
+                    <span className="text-3xl font-black text-amber-500">24</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Page: Medicine Stock & Quantity Management */}
+            {currentPage === 'stock' && (
+              <div className="space-y-6">
+                <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl flex justify-between items-center">
+                  <div>
+                    <h2 className="text-3xl font-black">Pharmacy & Medicine Stock Quantity</h2>
+                    <p className="text-sm text-slate-300">Track drug inventory counts, unit prices, and low stock quantity reorder alerts.</p>
+                  </div>
+                  <button onClick={() => window.print()} className="bg-teal-500 hover:bg-teal-600 text-white font-bold px-4 py-2.5 rounded-xl text-sm shadow-md">
+                    🖨️ Print Inventory Report
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-xs text-slate-400 block mb-1">Total Tracked Medicines</span>
+                    <span className="text-3xl font-black text-slate-900">5</span>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-xs text-slate-400 block mb-1">Low Stock Alerts</span>
+                    <span className="text-3xl font-black text-rose-600">2</span>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <span className="text-xs text-slate-400 block mb-1">Total Inventory Value</span>
+                    <span className="text-3xl font-black text-blue-600">$10,480.00</span>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-sm">
+                    <thead className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase">
+                      <tr>
+                        <th className="px-6 py-3">Medicine Item</th>
+                        <th className="px-6 py-3">Category</th>
+                        <th className="px-6 py-3">Stock Quantity</th>
+                        <th className="px-6 py-3">Unit Price</th>
+                        <th className="px-6 py-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 text-xs">
+                      <tr>
+                        <td className="px-6 py-4 font-bold text-slate-900">Lisinopril 10mg</td>
+                        <td className="px-6 py-4">Cardiovascular</td>
+                        <td className="px-6 py-4 font-black text-emerald-700 text-sm">150 tablets</td>
+                        <td className="px-6 py-4 font-mono font-bold">$15.00</td>
+                        <td className="px-6 py-4"><span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">In Stock</span></td>
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 font-bold text-slate-900">Amoxicillin 500mg</td>
+                        <td className="px-6 py-4">Antibiotic</td>
+                        <td className="px-6 py-4 font-black text-rose-600 text-sm">18 capsules</td>
+                        <td className="px-6 py-4 font-mono font-bold">$22.00</td>
+                        <td className="px-6 py-4"><span className="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded animate-pulse">⚠️ Low Stock Alert</span></td>
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 font-bold text-slate-900">Ibuprofen 400mg</td>
+                        <td className="px-6 py-4">Analgesic</td>
+                        <td className="px-6 py-4 font-black text-emerald-700 text-sm">320 tablets</td>
+                        <td className="px-6 py-4 font-mono font-bold">$8.50</td>
+                        <td className="px-6 py-4"><span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">In Stock</span></td>
+                      </tr>
+                      <tr>
+                        <td className="px-6 py-4 font-bold text-slate-900">Metformin 850mg</td>
+                        <td className="px-6 py-4">Antidiabetic</td>
+                        <td className="px-6 py-4 font-black text-rose-600 text-sm">12 tablets</td>
+                        <td className="px-6 py-4 font-mono font-bold">$18.00</td>
+                        <td className="px-6 py-4"><span className="bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded animate-pulse">⚠️ Low Stock Alert</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* Footer */}
+          <footer className="bg-slate-900 text-slate-400 text-xs py-8 border-t border-slate-800 text-center">
+            <p>© {new Date().getFullYear()} St. Jude HealthCare System. Full-Stack Medical Recommendation & Patient Intake Solution.</p>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('app')).render(<Application />);
+  </script>
+</body>
+</html>

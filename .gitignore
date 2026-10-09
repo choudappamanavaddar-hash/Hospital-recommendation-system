@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+*/dist/
+build/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# Keep example env files
+!.env.example
+!*/.env.example
+
+# Logs and system
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+
+# Database / SQLite / Temp
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+prisma/*.db
+prisma/*.db-journal
+*/prisma/*.db
+*/prisma/*.db-journal
+coverage/
+setup_git.ps1
+.agents/
